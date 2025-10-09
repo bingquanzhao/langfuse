@@ -183,6 +183,48 @@ export const upsertObservation = async (
   });
 };
 
+// Helper function to preprocess Doris usage/cost details
+const preprocessDorisUsageCostDetails = (record: any): any => {
+  const processed = { ...record };
+  
+  const usageCostFields = [
+    'provided_usage_details', 
+    'usage_details', 
+    'provided_cost_details', 
+    'cost_details'
+  ];
+
+  for (const field of usageCostFields) {
+    if (processed[field] && typeof processed[field] === 'string') {
+      try {
+        const parsed = JSON.parse(processed[field]);
+        if (typeof parsed === 'object' && !Array.isArray(parsed)) {
+          // Convert to format expected by UsageCostSchema
+          const result: Record<string, string | null> = {};
+          for (const [key, value] of Object.entries(parsed)) {
+            if (value === null || value === undefined) {
+              result[key] = null;
+            } else {
+              // Convert to string, but ensure it's a valid number string
+              const numValue = Number(value);
+              result[key] = isNaN(numValue) ? null : String(numValue);
+            }
+          }
+          processed[field] = result;
+        } else {
+          processed[field] = {};
+        }
+      } catch {
+        processed[field] = {};
+      }
+    } else if (!processed[field]) {
+      processed[field] = {};
+    }
+  }
+
+  return processed;
+};
+
 export type GetObservationsForTraceOpts<IncludeIO extends boolean> = {
   traceId: string;
   projectId: string;
@@ -239,7 +281,7 @@ export const getObservationsForTrace = async <IncludeIO extends boolean>(
       WHERE rn = 1
       ORDER BY event_ts DESC
     `;
-    records = await queryDoris<ObservationRecordReadType>({
+    const rawRecords = await queryDoris<any>({
       query,
       params: {
         traceId,
@@ -255,6 +297,9 @@ export const getObservationsForTrace = async <IncludeIO extends boolean>(
         projectId,
       },
     });
+
+    // Apply preprocessing to convert Doris string format to ClickHouse-compatible format
+    records = rawRecords.map(preprocessDorisUsageCostDetails) as ObservationRecordReadType[];
   } else {
     const query = `
     SELECT
@@ -408,7 +453,7 @@ export const getObservationForTraceIdByName = async (
       WHERE rn = 1
       ORDER BY event_ts DESC
     `;
-    const records = await queryDoris<ObservationRecordReadType>({
+    const rawRecords = await queryDoris<any>({
       query,
       params: {
         traceId,
@@ -426,6 +471,8 @@ export const getObservationForTraceIdByName = async (
       },
     });
 
+    // Apply preprocessing to convert Doris string format to ClickHouse-compatible format
+    const records = rawRecords.map(preprocessDorisUsageCostDetails) as ObservationRecordReadType[];
     return records.map(convertObservation);
   }
 
@@ -583,10 +630,13 @@ export const getObservationsById = async (
       WHERE rn = 1
       ORDER BY event_ts DESC
     `;
-    const records = await queryDoris<ObservationRecordReadType>({
+    const rawRecords = await queryDoris<any>({
       query,
       params: { ids, projectId },
     });
+    
+    // Apply preprocessing to convert Doris string format to ClickHouse-compatible format
+    const records = rawRecords.map(preprocessDorisUsageCostDetails) as ObservationRecordReadType[];
     return records.map(convertObservation);
   }
 
@@ -692,7 +742,7 @@ const getObservationByIdInternal = async ({
       WHERE rn = 1
       ORDER BY event_ts DESC
     `;
-    return await queryDoris<ObservationRecordReadType>({
+    const rawRecords = await queryDoris<any>({
       query,
       params: {
         id,
@@ -710,6 +760,9 @@ const getObservationByIdInternal = async ({
         projectId,
       },
     });
+
+    // Apply preprocessing to convert Doris string format to ClickHouse-compatible format
+    return rawRecords.map(preprocessDorisUsageCostDetails) as ObservationRecordReadType[];
   }
 
   const query = `

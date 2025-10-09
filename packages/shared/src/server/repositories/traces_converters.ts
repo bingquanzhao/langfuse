@@ -53,13 +53,29 @@ export const convertTraceDomainToClickhouse = (
 export const convertClickhouseToDomain = (
   record: TraceRecordReadType,
 ): TraceDomain => {
+  // Parse tags array - handle Doris string format
+  let tags: string[] = [];
+  if (typeof record.tags === 'string') {
+    try {
+      tags = JSON.parse(record.tags);
+      if (!Array.isArray(tags)) {
+        tags = [];
+      }
+    } catch (e) {
+      console.error('Failed to parse tags JSON:', e);
+      tags = [];
+    }
+  } else if (Array.isArray(record.tags)) {
+    tags = record.tags;
+  }
+
   return {
     id: record.id,
     projectId: record.project_id,
     name: record.name ?? null,
     timestamp: parseTimestamp(record.timestamp),
     environment: record.environment,
-    tags: record.tags,
+    tags: tags,
     bookmarked: record.bookmarked,
     release: record.release ?? null,
     version: record.version ?? null,

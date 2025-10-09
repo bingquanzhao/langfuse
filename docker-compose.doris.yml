@@ -1,6 +1,6 @@
 services:
   langfuse-web:
-    image: langfuse-web:latest
+    image: selectdb/langfuse-web:latest
     depends_on: &langfuse-depends-on
       postgres:
         condition: service_healthy
@@ -78,7 +78,7 @@ services:
       retries: 3
 
   langfuse-worker:
-    image: langfuse-worker:latest
+    image: selectdb/langfuse-worker:latest
     depends_on: *langfuse-depends-on
     ports:
       - "3030:3030"
