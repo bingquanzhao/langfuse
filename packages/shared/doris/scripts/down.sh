@@ -43,8 +43,14 @@ fi
 
 echo "Connecting to Doris at ${DORIS_HOST}:${DORIS_PORT} with database ${DORIS_DB}"
 
+# Build MySQL connection arguments
+MYSQL_ARGS="-h${DORIS_HOST} -P${DORIS_PORT} -u${DORIS_USER}"
+if [ -n "${DORIS_PASSWORD}" ]; then
+    MYSQL_ARGS="${MYSQL_ARGS} -p${DORIS_PASSWORD}"
+fi
+
 # Check if database exists
-DB_EXISTS=$(mysql -h"${DORIS_HOST}" -P"${DORIS_PORT}" -u"${DORIS_USER}" -p"${DORIS_PASSWORD}" -N -e "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '${DORIS_DB}';" 2>/dev/null | wc -l)
+DB_EXISTS=$(mysql ${MYSQL_ARGS} -N -e "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '${DORIS_DB}';" 2>/dev/null | wc -l)
 
 if [ "$DB_EXISTS" -eq 0 ]; then
     echo "Database ${DORIS_DB} does not exist. Nothing to rollback."
@@ -52,7 +58,7 @@ if [ "$DB_EXISTS" -eq 0 ]; then
 fi
 
 # Check if migration tracking table exists
-TABLE_EXISTS=$(mysql -h"${DORIS_HOST}" -P"${DORIS_PORT}" -u"${DORIS_USER}" -p"${DORIS_PASSWORD}" "${DORIS_DB}" -N -e "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = '${DORIS_DB}' AND TABLE_NAME = 'schema_migrations';" 2>/dev/null)
+TABLE_EXISTS=$(mysql ${MYSQL_ARGS} "${DORIS_DB}" -N -e "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = '${DORIS_DB}' AND TABLE_NAME = 'schema_migrations';" 2>/dev/null)
 
 if [ "$TABLE_EXISTS" -eq 0 ]; then
     echo "Migration tracking table does not exist. Nothing to rollback."
@@ -61,13 +67,13 @@ fi
 
 # Function to get the latest migration
 get_latest_migration() {
-    mysql -h"${DORIS_HOST}" -P"${DORIS_PORT}" -u"${DORIS_USER}" -p"${DORIS_PASSWORD}" "${DORIS_DB}" -N -e "SELECT version FROM schema_migrations ORDER BY applied_at DESC LIMIT 1;" 2>/dev/null
+    mysql ${MYSQL_ARGS} "${DORIS_DB}" -N -e "SELECT version FROM schema_migrations ORDER BY applied_at DESC LIMIT 1;" 2>/dev/null
 }
 
 # Function to remove migration from tracking table
 remove_migration_record() {
     local version=$1
-    mysql -h"${DORIS_HOST}" -P"${DORIS_PORT}" -u"${DORIS_USER}" -p"${DORIS_PASSWORD}" "${DORIS_DB}" -e "DELETE FROM schema_migrations WHERE version = '${version}';"
+    mysql ${MYSQL_ARGS} "${DORIS_DB}" -e "DELETE FROM schema_migrations WHERE version = '${version}';"
 }
 
 # Get the latest migration to rollback
@@ -93,7 +99,7 @@ fi
 echo "Executing down migration: ${DOWN_FILE}"
 
 # Execute the down migration
-mysql -h"${DORIS_HOST}" -P"${DORIS_PORT}" -u"${DORIS_USER}" -p"${DORIS_PASSWORD}" "${DORIS_DB}" < "${DOWN_FILE}"
+mysql ${MYSQL_ARGS} "${DORIS_DB}" < "${DOWN_FILE}"
 
 if [ $? -eq 0 ]; then
     # Remove migration record from tracking table

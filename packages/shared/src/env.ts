@@ -47,7 +47,7 @@ const EnvSchema = z.object({
   DORIS_FE_QUERY_PORT: z.coerce.number().positive().default(9030),
   DORIS_DB: z.string().default("langfuse"),
   DORIS_USER: z.string(),
-  DORIS_PASSWORD: z.string(),
+  DORIS_PASSWORD: z.string().default(""),
   DORIS_MAX_OPEN_CONNECTIONS: z.coerce.number().int().default(25),
   DORIS_REQUEST_TIMEOUT_MS: z.coerce.number().default(30000),
   LANGFUSE_AUTO_DORIS_MIGRATION_DISABLED: z.enum(["true", "false"]).default("false"),

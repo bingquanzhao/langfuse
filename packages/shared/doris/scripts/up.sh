@@ -39,9 +39,15 @@ DORIS_PORT="${DORIS_FE_QUERY_PORT}"
 echo "Connecting to Doris at ${DORIS_HOST}:${DORIS_PORT} with database ${DORIS_DB}"
 echo "Debug: DORIS_USER=${DORIS_USER}, DORIS_PASSWORD=${DORIS_PASSWORD}"
 
+# Build MySQL connection arguments
+MYSQL_ARGS="-h${DORIS_HOST} -P${DORIS_PORT} -u${DORIS_USER}"
+if [ -n "${DORIS_PASSWORD}" ]; then
+    MYSQL_ARGS="${MYSQL_ARGS} -p${DORIS_PASSWORD}"
+fi
+
 # Create database if it doesn't exist
 echo "Creating database ${DORIS_DB} if not exists..."
-mysql -h"${DORIS_HOST}" -P"${DORIS_PORT}" -u"${DORIS_USER}" -p"${DORIS_PASSWORD}" -e "CREATE DATABASE IF NOT EXISTS ${DORIS_DB};"
+mysql ${MYSQL_ARGS} -e "CREATE DATABASE IF NOT EXISTS ${DORIS_DB};"
 
 if [ $? -ne 0 ]; then
     echo "Error: Failed to create database ${DORIS_DB}"
@@ -50,7 +56,7 @@ fi
 
 # Create migration tracking table if it doesn't exist
 echo "Creating migration tracking table..."
-mysql -h"${DORIS_HOST}" -P"${DORIS_PORT}" -u"${DORIS_USER}" -p"${DORIS_PASSWORD}" "${DORIS_DB}" << EOF
+mysql ${MYSQL_ARGS} "${DORIS_DB}" << EOF
 CREATE TABLE IF NOT EXISTS schema_migrations (
     version varchar(255) NOT NULL,
     applied_at datetime DEFAULT CURRENT_TIMESTAMP
@@ -70,14 +76,14 @@ fi
 # Function to check if migration is already applied
 is_migration_applied() {
     local version=$1
-    local count=$(mysql -h"${DORIS_HOST}" -P"${DORIS_PORT}" -u"${DORIS_USER}" -p"${DORIS_PASSWORD}" "${DORIS_DB}" -N -e "SELECT COUNT(*) FROM schema_migrations WHERE version = '${version}';")
+    local count=$(mysql ${MYSQL_ARGS} "${DORIS_DB}" -N -e "SELECT COUNT(*) FROM schema_migrations WHERE version = '${version}';")
     [ "$count" -gt 0 ]
 }
 
 # Function to mark migration as applied
 mark_migration_applied() {
     local version=$1
-    mysql -h"${DORIS_HOST}" -P"${DORIS_PORT}" -u"${DORIS_USER}" -p"${DORIS_PASSWORD}" "${DORIS_DB}" -e "INSERT INTO schema_migrations (version) VALUES ('${version}');"
+    mysql ${MYSQL_ARGS} "${DORIS_DB}" -e "INSERT INTO schema_migrations (version) VALUES ('${version}');"
 }
 
 # Execute migrations in order
@@ -100,7 +106,7 @@ for migration_file in $(ls ${MIGRATION_DIR}/*.up.sql | sort); do
     echo "  Applying migration ${version}..."
 
     # Execute the migration
-    mysql -h"${DORIS_HOST}" -P"${DORIS_PORT}" -u"${DORIS_USER}" -p"${DORIS_PASSWORD}" "${DORIS_DB}" < "${migration_file}"
+    mysql ${MYSQL_ARGS} "${DORIS_DB}" < "${migration_file}"
 
     if [ $? -eq 0 ]; then
         # Mark migration as applied

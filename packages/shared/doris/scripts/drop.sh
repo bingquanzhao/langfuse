@@ -43,8 +43,14 @@ fi
 
 echo "Connecting to Doris at ${DORIS_HOST}:${DORIS_PORT} with database ${DORIS_DB}"
 
+# Build MySQL connection arguments
+MYSQL_ARGS="-h${DORIS_HOST} -P${DORIS_PORT} -u${DORIS_USER}"
+if [ -n "${DORIS_PASSWORD}" ]; then
+    MYSQL_ARGS="${MYSQL_ARGS} -p${DORIS_PASSWORD}"
+fi
+
 # Check if database exists
-DB_EXISTS=$(mysql -h"${DORIS_HOST}" -P"${DORIS_PORT}" -u"${DORIS_USER}" -p"${DORIS_PASSWORD}" -N -e "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '${DORIS_DB}';" 2>/dev/null | wc -l)
+DB_EXISTS=$(mysql ${MYSQL_ARGS} -N -e "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '${DORIS_DB}';" 2>/dev/null | wc -l)
 
 if [ "$DB_EXISTS" -eq 0 ]; then
     echo "Database ${DORIS_DB} does not exist. Nothing to drop."
@@ -71,7 +77,7 @@ fi
 echo "Dropping all tables in database ${DORIS_DB}..."
 
 # Get list of all tables (excluding system tables)
-TABLES=$(mysql -h"${DORIS_HOST}" -P"${DORIS_PORT}" -u"${DORIS_USER}" -p"${DORIS_PASSWORD}" "${DORIS_DB}" -N -e "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = '${DORIS_DB}' AND TABLE_TYPE = 'BASE TABLE';" 2>/dev/null)
+TABLES=$(mysql ${MYSQL_ARGS} "${DORIS_DB}" -N -e "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = '${DORIS_DB}' AND TABLE_TYPE = 'BASE TABLE';" 2>/dev/null)
 
 if [ -z "$TABLES" ]; then
     echo "No tables found in database ${DORIS_DB}."
@@ -79,7 +85,7 @@ else
     # Drop each table
     for table in $TABLES; do
         echo "Dropping table: $table"
-        mysql -h"${DORIS_HOST}" -P"${DORIS_PORT}" -u"${DORIS_USER}" -p"${DORIS_PASSWORD}" "${DORIS_DB}" -e "DROP TABLE IF EXISTS \`$table\`;" 2>/dev/null
+        mysql ${MYSQL_ARGS} "${DORIS_DB}" -e "DROP TABLE IF EXISTS \`$table\`;" 2>/dev/null
         
         if [ $? -eq 0 ]; then
             echo "  ✓ Table $table dropped successfully"
