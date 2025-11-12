@@ -1,6 +1,6 @@
 services:
   langfuse-web:
-    image: langfuse-web:latest
+    image: selectdb/langfuse-web:latest
     container_name: langfuse-web
     hostname: langfuse-web
     depends_on: &langfuse-depends-on
@@ -69,7 +69,7 @@ services:
       # Note: Doris is enabled automatically when LANGFUSE_ANALYTICS_BACKEND="doris"
       LANGFUSE_ANALYTICS_BACKEND: ${LANGFUSE_ANALYTICS_BACKEND:-doris}
       DORIS_URL: ${DORIS_FE_HTTP_URL:-}
-      DORIS_FE_HTTP_URL: ${DORIS_FE_HTTP_URL:-http://172.28.0.2:8030}
+      DORIS_FE_HTTP_URL: ${DORIS_FE_HTTP_URL:-http://172.30.0.2:8030}
       DORIS_FE_QUERY_PORT: ${DORIS_FE_QUERY_PORT:-9030}
       DORIS_DB: ${DORIS_DB:-langfuse}
       DORIS_USER: ${DORIS_USER:-root}
@@ -87,7 +87,7 @@ services:
       - doris_internal
 
   langfuse-worker:
-    image: langfuse-worker:latest
+    image: selectdb/langfuse-worker:latest
     container_name: langfuse-worker
     hostname: langfuse-worker
     depends_on: *langfuse-depends-on
@@ -168,7 +168,7 @@ services:
     hostname: doris_fe
     container_name: doris_fe
     environment:
-      - FE_SERVERS=fe1:172.28.0.2:9010
+      - FE_SERVERS=fe1:172.30.0.2:9010
       - FE_ID=1
     ports:
       - "8030:8030"
@@ -176,7 +176,7 @@ services:
       - "9010:9010"
     networks:
       doris_internal:
-        ipv4_address: 172.28.0.2
+        ipv4_address: 172.30.0.2
     volumes:
       # 持久化 FE 元数据
       - doris_fe_meta:/opt/apache-doris/fe/doris-meta
@@ -194,8 +194,8 @@ services:
     hostname: doris_be
     container_name: doris_be
     environment:
-      - FE_SERVERS=fe1:172.28.0.2:9010
-      - BE_ADDR=172.28.0.3:9050
+      - FE_SERVERS=fe1:172.30.0.2:9010
+      - BE_ADDR=172.30.0.3:9050
     depends_on:
       doris_fe:
         condition: service_healthy
@@ -206,7 +206,7 @@ services:
       - "9060:9060"
     networks:
       doris_internal:
-        ipv4_address: 172.28.0.3
+        ipv4_address: 172.30.0.3
     volumes:
       # 持久化 BE 数据存储
       - doris_be_storage:/opt/apache-doris/be/storage
@@ -214,7 +214,7 @@ services:
       # - ./be_custom.conf:/opt/apache-doris/be/conf/be_custom.conf:ro
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD-SHELL", "mysql -h 172.28.0.2 -P 9030 -uroot -e 'SHOW BACKENDS\\G' | grep -A 20 'Host: 172.28.0.3' | grep -q 'Alive: true'" ]
+      test: [ "CMD-SHELL", "mysql -h 172.30.0.2 -P 9030 -uroot -e 'SHOW BACKENDS\\G' | grep -A 20 'Host: 172.30.0.3' | grep -q 'Alive: true'" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -235,4 +235,4 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.28.0.0/24
+        - subnet: 172.30.0.0/24
