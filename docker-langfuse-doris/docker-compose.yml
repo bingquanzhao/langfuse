@@ -76,12 +76,15 @@ services:
       DORIS_PASSWORD: ${DORIS_PASSWORD:-}
       DORIS_MAX_OPEN_CONNECTIONS: ${DORIS_MAX_OPEN_CONNECTIONS:-100}
       DORIS_REQUEST_TIMEOUT_MS: ${DORIS_REQUEST_TIMEOUT_MS:-30000}
+      HOSTNAME: "0.0.0.0"
+      PORT: "3000"
     restart: always
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/public/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/public/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 30s
     networks:
       - default
       - doris_internal
@@ -231,6 +234,13 @@ volumes:
     driver: local
 
 networks:
+  default:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.200.0.0/24
+          gateway: 10.200.0.1
   doris_internal:
     driver: bridge
     ipam:
