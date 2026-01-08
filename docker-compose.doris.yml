@@ -76,12 +76,15 @@ services:
       DORIS_PASSWORD: ${DORIS_PASSWORD:-}
       DORIS_MAX_OPEN_CONNECTIONS: ${DORIS_MAX_OPEN_CONNECTIONS:-100}
       DORIS_REQUEST_TIMEOUT_MS: ${DORIS_REQUEST_TIMEOUT_MS:-30000}
+      HOSTNAME: "0.0.0.0"
+      PORT: "3000"
     restart: always
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/public/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "--timeout=10", "http://127.0.0.1:3000/api/public/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 30s
     networks:
       - default
       - doris_internal
@@ -97,10 +100,11 @@ services:
       <<: *langfuse-web-env
     restart: always
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3030/api/health"]
+      test: ["CMD-SHELL", "ps aux | grep 'node worker/dist/index.js' | grep -v grep || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 30s
     networks:
       - default
       - doris_internal
@@ -180,6 +184,8 @@ services:
     volumes:
       # 持久化 FE 元数据
       - doris_fe_meta:/opt/apache-doris/fe/doris-meta
+      # 挂载自定义配置
+#      - ./doris-config/fe_custom.conf:/opt/apache-doris/fe/conf/fe_custom.conf:ro
     healthcheck:
       test: [ "CMD-SHELL", "mysql -h 127.0.0.1 -P 9030 -uroot -e 'SELECT 1' 2>/dev/null || exit 1" ]
       interval: 10s
@@ -229,6 +235,13 @@ volumes:
     driver: local
 
 networks:
+  default:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.200.0.0/24
+          gateway: 10.200.0.1
   doris_internal:
     driver: bridge
     ipam:
