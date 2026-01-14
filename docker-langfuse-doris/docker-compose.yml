@@ -15,7 +15,7 @@ services:
       doris_be:
         condition: service_healthy
     ports:
-      - "13000:3000"
+      - "3000:3000"
     environment: &langfuse-web-env
       DATABASE_URL: postgresql://postgres:postgres@langfuse-postgres:5432/postgres
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-your-debug-secret-key-here-must-be-long-enough}
@@ -53,19 +53,16 @@ services:
       REDIS_TLS_CERT: ${REDIS_TLS_CERT:-}
       REDIS_TLS_KEY: ${REDIS_TLS_KEY:-}
 
-      # 时区设置
+      # Time zone configuration
       TZ: Asia/Shanghai
 
-      # 禁用 ClickHouse 迁移，因为我们使用 Doris
       LANGFUSE_AUTO_CLICKHOUSE_MIGRATION_DISABLED: true
 
-      # 禁用后台迁移（从 PG 到 ClickHouse），因为我们使用 Doris
       LANGFUSE_ENABLE_BACKGROUND_MIGRATIONS: false
 
-      # 临时禁用 Doris 迁移，直到修复脚本语法错误
       LANGFUSE_AUTO_DORIS_MIGRATION_DISABLED: false
 
-      # Doris 配置
+      # Doris configuration
       # Note: Doris is enabled automatically when LANGFUSE_ANALYTICS_BACKEND="doris"
       LANGFUSE_ANALYTICS_BACKEND: ${LANGFUSE_ANALYTICS_BACKEND:-doris}
       DORIS_URL: ${DORIS_FE_HTTP_URL:-}
@@ -182,9 +179,9 @@ services:
       doris_internal:
         ipv4_address: 172.30.0.2
     volumes:
-      # 持久化 FE 元数据
+      # Persist FE metadata
       - doris_fe_meta:/opt/apache-doris/fe/doris-meta
-      # 挂载自定义配置
+      # Mount custom configuration
       - ./doris-config/fe_custom.conf:/opt/apache-doris/fe/conf/fe_custom.conf:ro
     healthcheck:
       test: [ "CMD-SHELL", "mysql -h 127.0.0.1 -P 9030 -uroot -e 'SELECT 1' 2>/dev/null || exit 1" ]
@@ -212,9 +209,9 @@ services:
       doris_internal:
         ipv4_address: 172.30.0.3
     volumes:
-      # 持久化 BE 数据存储
+      # Persist BE data storage
       - doris_be_storage:/opt/apache-doris/be/storage
-      # 可选：挂载自定义配置
+      # Optional: mount custom configuration
       # - ./be_custom.conf:/opt/apache-doris/be/conf/be_custom.conf:ro
     restart: unless-stopped
     healthcheck:
